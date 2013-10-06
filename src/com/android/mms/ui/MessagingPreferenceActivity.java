@@ -31,6 +31,7 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
+import android.preference.EditTextPreference;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.Preference.OnPreferenceChangeListener;
@@ -75,6 +76,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     public static final String RETRIEVAL_DURING_ROAMING = "pref_key_mms_retrieval_during_roaming";
     public static final String AUTO_DELETE              = "pref_key_auto_delete";
     public static final String GROUP_MMS_MODE           = "pref_key_mms_group_mms";
+    public static final String SMS_EDIT_MAX_LINES       = "pref_key_compose_edit_lines";
 
     // Emoji
     public static final String ENABLE_EMOJIS             = "pref_key_enable_emojis";
@@ -127,6 +129,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
 
     private ListPreference mMessageSendDelayPref;
     private Preference mSmsLimitPref;
+    private Preference mSmsMaxEditLinesPref;
     private Preference mSmsDeliveryReportPref;
     private CheckBoxPreference mSmsSplitCounterPref;
     private Preference mMmsLimitPref;
@@ -199,6 +202,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
 
         mManageSimPref = findPreference("pref_key_manage_sim_messages");
         mSmsLimitPref = findPreference("pref_key_sms_delete_limit");
+        mSmsMaxEditLinesPref = findPreference("pref_key_compose_edit_lines");
         mSmsDeliveryReportPref = findPreference("pref_key_sms_delivery_reports");
         mSmsSplitCounterPref = (CheckBoxPreference) findPreference("pref_key_sms_split_counter");
         mMmsDeliveryReportPref = findPreference("pref_key_mms_delivery_reports");
@@ -309,6 +313,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         }
 
         setEnabledNotificationsPref();
+       
 
         // Privacy mode
         setEnabledPrivacyModePref();
@@ -355,6 +360,11 @@ public class MessagingPreferenceActivity extends PreferenceActivity
                 return true;
             }
         });
+        
+        String smsMaxEditLines = String.valueOf(sharedPreferences.getInt(SMS_EDIT_MAX_LINES, 3));
+        mSmsMaxEditLinesPref.setSummary(R.string.pref_compose_edit_lines_summary);
+        
+
 
         int unicodeStripping = sharedPreferences.getInt(UNICODE_STRIPPING_VALUE, UNICODE_STRIPPING_LEAVE_INTACT);
         mUnicodeStripping.setValue(String.valueOf(unicodeStripping));
@@ -393,6 +403,8 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         return Long.valueOf(prefs.getString(SEND_DELAY_DURATION, "0"));
     }
+
+ 
 
     private void setRingtoneSummary(String soundValue) {
         Uri soundUri = TextUtils.isEmpty(soundValue) ? null : Uri.parse(soundValue);
@@ -484,13 +496,24 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     @Override
     public boolean onPreferenceTreeClick(PreferenceScreen preferenceScreen,
             Preference preference) {
+        if (preference==mSmsMaxEditLinesPref){
+            new NumberPickerDialog(this,
+                    mSmsMaxEditLinesListener,
+                    PreferenceManager.getDefaultSharedPreferences(MessagingPreferenceActivity.this).
+                    getInt(SMS_EDIT_MAX_LINES, MmsConfig.getSmsMinEditLines()),
+                    MmsConfig.getSmsMinEditLines(),
+                    MmsConfig.getSmsMaxEditLines(),
+                    R.string.pref_compose_edit_lines,
+                    R.string.pref_compose_edit_lines_summary).show();
+        }
         if (preference == mSmsLimitPref) {
             new NumberPickerDialog(this,
                     mSmsLimitListener,
                     mSmsRecycler.getMessageLimit(this),
                     mSmsRecycler.getMessageMinLimit(),
                     mSmsRecycler.getMessageMaxLimit(),
-                    R.string.pref_title_sms_delete).show();
+                    R.string.pref_title_sms_delete,
+                    R.string.pref_messages_to_save).show();
 
         } else if (preference == mMmsLimitPref) {
             new NumberPickerDialog(this,
@@ -498,7 +521,8 @@ public class MessagingPreferenceActivity extends PreferenceActivity
                     mMmsRecycler.getMessageLimit(this),
                     mMmsRecycler.getMessageMinLimit(),
                     mMmsRecycler.getMessageMaxLimit(),
-                    R.string.pref_title_mms_delete).show();
+                    R.string.pref_title_mms_delete,
+                    R.string.pref_messages_to_save).show();
 
         } else if (preference == mManageSimPref) {
             startActivity(new Intent(this, ManageSimMessages.class));
@@ -570,7 +594,15 @@ public class MessagingPreferenceActivity extends PreferenceActivity
                 setSmsDisplayLimit();
             }
     };
-
+    
+    NumberPickerDialog.OnNumberSetListener mSmsMaxEditLinesListener =
+            new NumberPickerDialog.OnNumberSetListener() {
+                public void onNumberSet(int limit) {
+                    PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).
+                    edit().putInt(SMS_EDIT_MAX_LINES, limit).commit();
+                }
+        };
+        
     NumberPickerDialog.OnNumberSetListener mMmsLimitListener =
         new NumberPickerDialog.OnNumberSetListener() {
             public void onNumberSet(int limit) {
